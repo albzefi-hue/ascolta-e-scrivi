@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ascolta e Scrivi</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ascolta">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1f5fa8">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#eef1f4; --card:#fff; --ink:#1b2430; --muted:#5d6b7a; --line:#d5dce4;
+  --accent:#1f5fa8; --accent-ink:#fff; --rec:#d6336c; --ok:#2b8a3e; --err:#c92a2a; --interim:#8a97a6;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#12161c; --card:#1a2029; --ink:#e7ecf2; --muted:#9aa8b8; --line:#2c3542;
+  --accent:#6aa7ec; --accent-ink:#0d1520; --rec:#ff6b9a; --ok:#69db7c; --err:#ff8787; --interim:#6f7d8d;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.5;
+  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:16px;padding-top:16px}
+h1{margin:0;font-size:1.6rem}
+.sub{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+.recbox{display:flex;align-items:center;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+#rec{width:84px;height:84px;border-radius:50%;border:none;background:var(--rec);color:#fff;font-size:.95rem;font-weight:700;flex:none;cursor:pointer;box-shadow:0 6px 18px -8px var(--rec)}
+#rec.on{animation:pulse 1.4s infinite}
+#rec .sq{display:block;margin:0 auto 4px;width:22px;height:22px;border-radius:50%;background:#fff}
+#rec.on .sq{border-radius:4px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rec) 60%,transparent)}70%{box-shadow:0 0 0 18px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){#rec.on{animation:none}}
+.recinfo{min-width:0}
+#timer{font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums}
+#state{color:var(--muted);font-size:.92rem}
+#state.err{color:var(--err)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.lab{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+#text{width:100%;min-height:220px;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:17px;background:var(--bg);color:var(--ink);resize:vertical}
+#interim{color:var(--interim);font-style:italic;min-height:1.5em}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+button.b{font:inherit;font-weight:600;border-radius:12px;padding:12px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.b.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);flex:1 1 100%}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#title{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.msg{font-size:.92rem}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hist li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.hist li:first-child{border-top:none}
+.hist .t{flex:1;min-width:0}
+.hist .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist .t span{color:var(--muted);font-size:.85rem}
+.hist button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 10px}
+.hist button.del{color:var(--err)}
+.help{font-size:.88rem;color:var(--muted)}
+.help ol{margin:4px 0 0;padding-left:1.2em}
+.warn{background:color-mix(in srgb,var(--err) 12%,var(--card));border-color:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ascolta e Scrivi</h1>
+    <p class="sub">Premi il pulsante rosso: l'app ascolta e scrive tutto quello che viene detto.</p>
+  </header>
+
+  <div class="card warn" id="nosupport" hidden>
+    <b>Questo browser non riesce ad ascoltare da solo.</b>
+    <span class="help">Apri l'app in <b>Safari</b> (o Chrome). Intanto puoi usare il microfono della tastiera dell'iPhone: tocca il riquadro del testo e premi il 🎤 sulla tastiera.</span>
+  </div>
+
+  <div class="recbox">
+    <button id="rec" aria-label="Inizia ad ascoltare"><span class="sq"></span><span id="recl">Ascolta</span></button>
+    <div class="recinfo">
+      <div id="timer">00:00</div>
+      <div id="state">Pronto. Tieni il telefono vicino a chi parla.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="lab" for="title">Titolo (facoltativo)</label>
+    <input id="title" placeholder="Es. Riunione collaudo 1600 kVA">
+    <label class="lab" for="text">Testo ascoltato</label>
+    <textarea id="text" placeholder="Qui comparirà il testo mentre le persone parlano. Puoi anche correggerlo a mano."></textarea>
+    <div id="interim" aria-live="polite"></div>
+    <div class="row">
+      <button class="b primary" id="ai">✨ Crea documento con l'IA</button>
+      <button class="b" id="copy">Copia testo</button>
+      <button class="b" id="share">Condividi</button>
+      <button class="b" id="new">Nuovo</button>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+
+  <div class="card">
+    <span class="lab">Registrazioni salvate</span>
+    <ul class="hist" id="hist"></ul>
+  </div>
+
+  <div class="card help">
+    <b>Come funziona</b>
+    <ol>
+      <li>Premi <b>Ascolta</b> e lascia lo schermo acceso (se lo schermo si spegne l'ascolto si ferma).</li>
+      <li>Premi di nuovo per fermare. Il testo si salva da solo.</li>
+      <li>Premi <b>Crea documento con l'IA</b>: il testo viene copiato e si apre la pagina Claude. Lì tieni premuto nel riquadro, scegli <b>Incolla</b> e poi <b>Crea documento</b>.</li>
+    </ol>
+    <span>Su iPhone serve che <b>Dettatura</b> sia attiva (Impostazioni › Generali › Tastiera › Abilita Dettatura).</span>
+  </div>
+</div>
+
+<script>
+const AI_URL="https://claude.ai/artifact/QjUDDx5jLxEmBuEEKPBPAL";
+const KEY="ascolta-scrivi-v1";
+const $=id=>document.getElementById(id);
+const text=$("text"),interim=$("interim"),rec=$("rec"),state=$("state"),timer=$("timer"),title=$("title");
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+let data={items:[],cur:null};
+try{data=JSON.parse(localStorage.getItem(KEY))||data}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+
+function curItem(){
+  if(!data.cur){const it={id:Date.now().toString(36),date:Date.now(),title:"",text:"",secs:0};data.items.unshift(it);data.cur=it.id}
+  return data.items.find(i=>i.id===data.cur)||(data.cur=null,curItem());
+}
+function storeCur(){
+  if(!text.value.trim()&&!title.value.trim()&&!data.cur)return;
+  const it=curItem();it.text=text.value;it.title=title.value;save();renderHist();
+}
+function load(id){
+  stopRec();
+  const it=data.items.find(i=>i.id===id);if(!it)return;
+  data.cur=id;text.value=it.text;title.value=it.title;secs=it.secs||0;showTime();save();renderHist();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function fmtDate(t){return new Date(t).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+function renderHist(){
+  const h=$("hist");h.innerHTML="";
+  const items=data.items.filter(i=>i.text.trim()||i.title.trim());
+  if(!items.length){h.innerHTML='<li><span class="help">Ancora nessuna registrazione.</span></li>';return}
+  items.forEach(i=>{
+    const li=document.createElement("li");
+    const t=document.createElement("div");t.className="t";
+    const b=document.createElement("b");b.textContent=(i.id===data.cur?"● ":"")+(i.title.trim()||i.text.trim().slice(0,50)||"Senza titolo");
+    const s=document.createElement("span");s.textContent=fmtDate(i.date)+" · "+i.text.trim().split(/\s+/).filter(Boolean).length+" parole";
+    t.append(b,s);
+    const o=document.createElement("button");o.textContent="Apri";o.onclick=()=>load(i.id);
+    const d=document.createElement("button");d.textContent="Elimina";d.className="del";
+    d.onclick=()=>{if(d.dataset.sure){data.items=data.items.filter(x=>x.id!==i.id);if(data.cur===i.id){data.cur=null;text.value="";title.value=""}save();renderHist()}else{d.dataset.sure=1;d.textContent="Sicuro?";setTimeout(()=>{delete d.dataset.sure;d.textContent="Elimina"},3000)}};
+    li.append(t,o,d);h.append(li);
+  });
+}
+
+/* ---- ascolto ---- */
+let recog=null,listening=false,base="",chunk="",secs=0,tick=null,wake=null;
+function showTime(){timer.textContent=String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0")}
+function joinText(a,b){a=a.replace(/\s+$/,"");b=b.trim();if(!b)return a;if(!a)return cap(b);const end=/[.!?]$/.test(a);return a+(end?" "+cap(b):" "+b)}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function commitChunk(){if(chunk.trim()){base=joinText(base,chunk);text.value=base;chunk="";storeCur()}interim.textContent=""}
+
+function startRec(){
+  if(!SR){$("nosupport").hidden=false;return}
+  base=text.value;chunk="";listening=true;
+  rec.classList.add("on");$("recl").textContent="Ferma";rec.setAttribute("aria-label","Ferma l'ascolto");
+  state.className="";state.textContent="Sto ascoltando…";
+  tick=setInterval(()=>{secs++;showTime();if(secs%10===0){const it=curItem();it.secs=secs;save()}},1000);
+  try{navigator.wakeLock?.request("screen").then(w=>wake=w).catch(()=>{})}catch(e){}
+  begin();
+}
+function begin(){
+  recog=new SR();
+  recog.lang="it-IT";recog.continuous=true;recog.interimResults=true;
+  recog.onresult=e=>{
+    let fin="",tmp="";
+    for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)fin+=" "+r[0].transcript;else tmp+=" "+r[0].transcript}
+    chunk=fin;
+    text.value=joinText(base,fin);
+    interim.textContent=tmp.trim();
+    text.scrollTop=text.scrollHeight;
+  };
+  recog.onerror=e=>{
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){listening=false;stopRec();state.className="err";state.textContent="Il microfono non è permesso. Consenti il microfono a Safari (Impostazioni › Safari › Microfono) e attiva la Dettatura.";}
+    else if(e.error==="audio-capture"){listening=false;stopRec();state.className="err";state.textContent="Nessun microfono disponibile."}
+  };
+  recog.onend=()=>{
+    // unisce anche l'ultima parte non ancora confermata
+    const last=interim.textContent;if(last)chunk=(chunk+" "+last);
+    commitChunk();
+    if(listening)setTimeout(()=>{if(listening)try{begin()}catch(e){}},250);
+  };
+  try{recog.start()}catch(e){}
+}
+function stopRec(){
+  const was=listening;listening=false;
+  if(recog){try{recog.stop()}catch(e){}}
+  clearInterval(tick);tick=null;
+  try{wake?.release()}catch(e){}wake=null;
+  rec.classList.remove("on");$("recl").textContent="Ascolta";rec.setAttribute("aria-label","Inizia ad ascoltare");
+  if(was){state.className="";state.textContent="Fermato. Testo salvato.";const it=curItem();it.secs=secs;storeCur()}
+}
+rec.onclick=()=>listening?stopRec():startRec();
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&listening&&!wake){try{navigator.wakeLock?.request("screen").then(w=>wake=w).catch(()=>{})}catch(e){}}});
+
+/* ---- pulsanti ---- */
+function msg(t,c){const m=$("msg");m.textContent=t;m.className="msg"+(c?" "+c:"")}
+function fullText(){return (title.value.trim()?"Titolo: "+title.value.trim()+"\n\n":"")+text.value.trim()}
+async function copy(){
+  try{await navigator.clipboard.writeText(fullText());return true}
+  catch(e){text.focus();text.select();try{return document.execCommand("copy")}catch(_){return false}}
+}
+$("ai").onclick=async()=>{
+  if(listening)stopRec();
+  if(!text.value.trim()){msg("Non c'è ancora testo: premi prima Ascolta.","err");return}
+  const ok=await copy();
+  msg(ok?"Testo copiato ✓ Nella pagina Claude tieni premuto nel riquadro e scegli Incolla.":"Copia il testo a mano (seleziona tutto › Copia), poi incollalo nella pagina Claude.",ok?"ok":"err");
+  setTimeout(()=>{window.open(AI_URL,"_blank")||(location.href=AI_URL)},ok?600:1500);
+};
+$("copy").onclick=async()=>{if(!text.value.trim())return msg("Non c'è testo da copiare.","err");const ok=await copy();msg(ok?"Testo copiato ✓":"Seleziona il testo e copialo a mano.",ok?"ok":"err")};
+$("share").onclick=async()=>{
+  if(!text.value.trim())return msg("Non c'è testo da condividere.","err");
+  if(navigator.share){try{await navigator.share({title:title.value||"Ascolta e Scrivi",text:fullText()})}catch(e){}}
+  else{await copy();msg("Testo copiato ✓ (la condivisione non è disponibile qui)","ok")}
+};
+$("new").onclick=()=>{stopRec();storeCur();data.cur=null;text.value="";title.value="";secs=0;showTime();save();renderHist();msg("");state.className="";state.textContent="Pronto per una nuova registrazione."};
+text.addEventListener("input",()=>{if(!listening)base=text.value;storeCur()});
+title.addEventListener("input",storeCur);
+
+/* ---- avvio ---- */
+if(!SR)$("nosupport").hidden=false;
+const c=data.items.find(i=>i.id===data.cur);
+if(c){text.value=c.text;title.value=c.title;secs=c.secs||0;showTime()}
+renderHist();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
